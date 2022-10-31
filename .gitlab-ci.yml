@@ -1,31 +1,23 @@
-image: docker:latest
-
-services:
-- docker:dind
-
 stages:
-- build
-- release
+  - build
 
-variables:
-  DOCKER_DRIVER: overlay2
-  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
-  RELEASE_IMAGE_TAG: $CI_REGISTRY_IMAGE:latest
-
-before_script:
-  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-
-build:
+docker-build:
   stage: build
-  script:
-    - docker build -t $IMAGE_TAG .
-    - docker push $IMAGE_TAG
 
-release:
-  stage: release
+  image:
+    name: docker:latest
+
+  services:
+   - name: docker:dind
+     alias: dockerdaemon
+
+  variables:
+    DOCKER_HOST: tcp://dockerdaemon:2375/
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+    RELEASE_IMAGE_TAG: $CI_REGISTRY_IMAGE:latest
+
   script:
-    - docker pull $IMAGE_TAG
-    - docker tag $IMAGE_TAG $RELEASE_IMAGE_TAG
-    - docker push $RELEASE_IMAGE_TAG
-  only:
-    - master
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker build -t "$CI_REGISTRY_IMAGE:CI_COMMIT_REF_NAME" .
+    - docker push "$CI_REGISTRY_IMAGE:CI_COMMIT_REF_NAME"
